@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI2ZIP — AI Code to ZIP Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%235E81F4%22/><text x=%2250%22 y=%2266%22 font-size=%2254%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22monospace%22>Z</text></svg>" />
+<link rel="stylesheet" href="css/style.css" />
+<!-- CodeMirror 5 (editor) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css" />
+</head>
+<body>
+
+<!-- ============ TOP NAV ============ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 100 100"><defs><linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7C6CF6"/><stop offset="100%" stop-color="#5E81F4"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(#brandGrad)"/><text x="50" y="68" font-size="54" text-anchor="middle" fill="white" font-family="'JetBrains Mono', monospace" font-weight="700">Z</text></svg>
+      <span>AI2ZIP</span>
+      <span class="brand-version">v1.0.0</span>
+    </div>
+    <nav class="topbar-actions">
+      <button class="tbtn" id="btn-open" title="Open project (Ctrl+O)"><i data-ic="folder-open"></i>Open Project</button>
+      <button class="tbtn" id="btn-save" title="Save project (Ctrl+S)"><i data-ic="save"></i>Save Project</button>
+      <button class="tbtn tbtn-import" id="btn-import" title="Import AI response"><i data-ic="import"></i>Import AI Response</button>
+      <button class="tbtn" id="btn-export" title="Export ZIP"><i data-ic="export"></i>Export</button>
+    </nav>
+  </div>
+  <div class="topbar-right">
+    <button class="tbtn icon-only" id="btn-settings" title="Settings"><i data-ic="settings"></i></button>
+    <button class="tbtn icon-only" id="btn-theme" title="Toggle theme"><i data-ic="sun"></i></button>
+    <button class="tbtn icon-only" id="btn-help" title="Help / Shortcuts"><i data-ic="help"></i></button>
+  </div>
+</header>
+
+<!-- ============ MAIN LAYOUT ============ -->
+<div class="app-body">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Explorer</span>
+      <div class="sidebar-icons">
+        <button class="ibtn" id="btn-new-file" title="New File"><i data-ic="file-plus"></i></button>
+        <button class="ibtn" id="btn-new-folder" title="New Folder"><i data-ic="folder-plus"></i></button>
+        <button class="ibtn" id="btn-collapse-all" title="Collapse All"><i data-ic="collapse"></i></button>
+      </div>
+    </div>
+    <div class="sidebar-search">
+      <i data-ic="search"></i>
+      <input type="text" id="sidebar-search-input" placeholder="Search files & folders…" />
+    </div>
+    <div class="tree-container" id="tree-container">
+      <div class="tree-empty" id="tree-empty">
+        <i data-ic="inbox" style="width:34px;height:34px;opacity:.35"></i>
+        <p>No files yet</p>
+        <span>Parse an AI response to build your project</span>
+      </div>
+      <ul class="tree" id="file-tree"></ul>
+    </div>
+    <div class="sidebar-resizer" id="sidebar-resizer"></div>
+  </aside>
+
+  <!-- CENTER PANEL -->
+  <main class="center-panel" id="center-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-panel="paste">Paste AI Response</div>
+      <div class="panel-tab" data-panel="editor">Editor</div>
+    </div>
+
+    <section class="paste-view" id="paste-view">
+      <div class="paste-view-head">
+        <span class="paste-view-title">AI Response Input</span>
+        <button class="btn-ghost btn-sm" id="btn-clear-paste"><i data-ic="x"></i> Clear</button>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <textarea id="paste-textarea" placeholder=""></textarea>
+        <div class="dropzone-placeholder" id="dropzone-placeholder">
+          <div class="dz-icon"><i data-ic="sparkles"></i></div>
+          <p class="dz-title">Paste your AI generated code here</p>
+          <p class="dz-subtitle">Supports responses from ChatGPT, Claude, Copilot, Gemini, and more.</p>
+          <p class="dz-or">Or drag and drop your response file here</p>
+        </div>
+        <div class="dropzone-hint" id="dropzone-hint">
+          <i data-ic="upload" style="width:40px;height:40px"></i>
+          <p>Drop a markdown or text file</p>
+        </div>
+      </div>
+      <div class="formats-card">
+        <span class="formats-title">Supported Formats</span>
+        <div class="formats-list">
+          <div class="format-chip"><span class="format-badge badge-txt">TXT</span><div><div class="format-name">.txt</div><div class="format-desc">Text Files</div></div></div>
+          <div class="format-chip"><span class="format-badge badge-md">MD</span><div><div class="format-name">.md</div><div class="format-desc">Markdown Files</div></div></div>
+        </div>
+      </div>
+      <div class="parse-bar">
+        <div class="parse-stats" id="parse-stats"></div>
+        <div class="parse-actions">
+          <button class="btn-primary btn-lg btn-flex" id="btn-parse">
+            <i data-ic="sparkles"></i> Parse Project
+          </button>
+          <button class="btn-ghost" id="btn-upload-txt"><i data-ic="upload"></i> Upload .txt</button>
+          <button class="btn-ghost" id="btn-upload-md"><i data-ic="upload"></i> Upload .md</button>
+        </div>
+      </div>
+      <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </section>
+
+    <section class="editor-view" id="editor-view" style="display:none;">
+      <div class="editor-tabs" id="editor-tabs"></div>
+      <div class="editor-toolbar">
+        <button class="ibtn" id="btn-find" title="Find (Ctrl+F)"><i data-ic="search"></i></button>
+        <button class="ibtn" id="btn-replace" title="Replace (Ctrl+H)"><i data-ic="replace"></i></button>
+        <button class="ibtn" id="btn-undo" title="Undo"><i data-ic="undo"></i></button>
+        <button class="ibtn" id="btn-redo" title="Redo"><i data-ic="redo"></i></button>
+        <span class="tb-sep"></span>
+        <button class="ibtn" id="btn-format" title="Format"><i data-ic="format"></i></button>
+        <button class="ibtn" id="btn-download-file" title="Download this file"><i data-ic="download"></i></button>
+        <span class="editor-file-path" id="editor-file-path"></span>
+      </div>
+      <div class="cm-host" id="cm-host"></div>
+      <div class="editor-empty" id="editor-empty">
+        <i data-ic="file-code" style="width:44px;height:44px;opacity:.3"></i>
+        <p>Select a file to preview and edit</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel" id="right-panel">
+    <div class="right-header">
+      <span>Project Summary</span>
+    </div>
+    <div class="right-body" id="right-body">
+      <div class="summary-empty">Parse a response to see file details, warnings and duplicate suggestions here.</div>
+    </div>
+    <div class="right-resizer" id="right-resizer"></div>
+  </aside>
+</div>
+
+<!-- ============ STATUS BAR ============ -->
+<footer class="statusbar">
+  <div class="stat-card">
+    <div class="stat-card-icon icon-blue"><i data-ic="file"></i></div>
+    <div class="stat-card-body"><span class="stat-card-label">Files Detected</span><span class="stat-card-value" id="status-files">0 <small>files</small></span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon icon-purple"><i data-ic="folder"></i></div>
+    <div class="stat-card-body"><span class="stat-card-label">Folders Created</span><span class="stat-card-value" id="status-folders">0 <small>folders</small></span></div>
+  </div>
+  <div class="stat-card" id="status-warnings-wrap">
+    <div class="stat-card-icon icon-amber"><i data-ic="warning"></i></div>
+    <div class="stat-card-body"><span class="stat-card-label">Warnings</span><span class="stat-card-value" id="status-warnings">0 <small>warnings</small></span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon icon-green"><i data-ic="check"></i></div>
+    <div class="stat-card-body"><span class="stat-card-label">Status</span><span class="stat-card-value status-ready-text" id="status-ready-text">Ready to Export</span></div>
+  </div>
+  <div class="status-spacer"></div>
+  <div class="statusbar-zipsize"><i data-ic="zip"></i><span id="status-zipsize">~0 KB</span></div>
+</footer>
+
+<button class="fab-generate" id="btn-generate-fab" title="Generate ZIP">
+  <span class="fab-icon"><i data-ic="zip"></i></span>
+  <span class="fab-text"><span class="fab-title">Generate ZIP</span><span class="fab-sub">Create downloadable project archive</span></span>
+</button>
+
+<!-- ============ OVERLAYS / MODALS ============ -->
+<div class="modal-backdrop" id="modal-backdrop"></div>
+
+<div class="modal" id="modal-settings">
+  <div class="modal-head"><span>Settings</span><button class="ibtn modal-close" data-close><i data-ic="x"></i></button></div>
+  <div class="modal-body">
+    <div class="setting-row">
+      <label>Theme</label>
+      <select id="set-theme"><option value="dark">Dark</option><option value="light">Light</option></select>
+    </div>
+    <div class="setting-row">
+      <label>Font Size</label>
+      <input type="range" id="set-fontsize" min="11" max="20" value="13" />
+      <span id="set-fontsize-val">13px</span>
+    </div>
+    <div class="setting-row">
+      <label>Tab Width</label>
+      <select id="set-tabwidth"><option value="2">2</option><option value="4">4</option></select>
+    </div>
+    <div class="setting-row">
+      <label>Word Wrap</label>
+      <input type="checkbox" id="set-wordwrap" checked />
+    </div>
+    <div class="setting-row">
+      <label>Autosave</label>
+      <input type="checkbox" id="set-autosave" checked />
+    </div>
+    <div class="setting-row">
+      <label>Default ZIP Name</label>
+      <input type="text" id="set-zipname" value="project.zip" />
+    </div>
+    <div class="setting-row">
+      <label>Accent Color</label>
+      <input type="color" id="set-accent" value="#5E81F4" />
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-help">
+  <div class="modal-head"><span>Keyboard Shortcuts</span><button class="ibtn modal-close" data-close><i data-ic="x"></i></button></div>
+  <div class="modal-body">
+    <div class="shortcut-row"><span>Parse project</span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></div>
+    <div class="shortcut-row"><span>Generate ZIP</span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></div>
+    <div class="shortcut-row"><span>Save project</span><kbd>Ctrl</kbd>+<kbd>S</kbd></div>
+    <div class="shortcut-row"><span>Open project</span><kbd>Ctrl</kbd>+<kbd>O</kbd></div>
+    <div class="shortcut-row"><span>Find in file</span><kbd>Ctrl</kbd>+<kbd>F</kbd></div>
+    <div class="shortcut-row"><span>Replace in file</span><kbd>Ctrl</kbd>+<kbd>H</kbd></div>
+    <div class="shortcut-row"><span>New file</span><kbd>Ctrl</kbd>+<kbd>N</kbd></div>
+    <div class="shortcut-row"><span>Search sidebar</span><kbd>Ctrl</kbd>+<kbd>P</kbd></div>
+  </div>
+</div>
+
+<div class="modal" id="modal-suggest">
+  <div class="modal-head"><span>Filename suggestion</span><button class="ibtn modal-close" data-close><i data-ic="x"></i></button></div>
+  <div class="modal-body" id="modal-suggest-body"></div>
+</div>
+
+<div class="modal" id="modal-duplicate">
+  <div class="modal-head"><span>Duplicate file detected</span><button class="ibtn modal-close" data-close><i data-ic="x"></i></button></div>
+  <div class="modal-body" id="modal-duplicate-body"></div>
+</div>
+
+<div class="modal modal-wide" id="modal-newitem">
+  <div class="modal-head"><span id="modal-newitem-title">New File</span><button class="ibtn modal-close" data-close><i data-ic="x"></i></button></div>
+  <div class="modal-body">
+    <input type="text" id="modal-newitem-input" placeholder="path/to/file.js" />
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close>Cancel</button>
+      <button class="btn-primary" id="modal-newitem-confirm">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast container -->
+<div class="toast-stack" id="toast-stack"></div>
+
+<!-- ============ SCRIPTS ============ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/jsx/jsx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/rust/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/go/go.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
